@@ -1,22 +1,22 @@
 import path from "path"
-const fs = require("fs")
-const py = spawn("python", ["script.py"])
-import { spawn, execSync } from "child_process";
-import { NextRequest, NextResponse } from "next/server";
+import fs from "fs"
+import { spawn, execSync } from "child_process"
+import { NextRequest, NextResponse } from "next/server"
 
 function getPythonCommand() {
   try {
-    execSync("python3 --version", { stdio: "ignore" });
-    return "python3";
+    execSync("python3 --version", { stdio: "ignore" })
+    return "python3"
   } catch {
     try {
-      execSync("python --version", { stdio: "ignore" });
-      return "python";
+      execSync("python --version", { stdio: "ignore" })
+      return "python"
     } catch {
-      return "py"; // Windows launcher
+      return "py" // Windows launcher
     }
   }
 }
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
