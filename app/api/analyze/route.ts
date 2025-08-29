@@ -4,18 +4,20 @@ import { spawn, execSync } from "child_process"
 import { NextRequest, NextResponse } from "next/server"
 
 function getPythonCommand() {
-  try {
-    execSync("python3 --version", { stdio: "ignore" })
-    return "python3"
-  } catch {
+  if (process.platform === "win32") {
+    // On Windows, prefer python, fallback to py
     try {
-      execSync("python --version", { stdio: "ignore" })
-      return "python"
+      execSync("python --version", { stdio: "ignore" });
+      return "python";
     } catch {
-      return "py" // Windows launcher
+      return "py";
     }
+  } else {
+    // On Linux/Mac (Vercel), always use python3
+    return "python3";
   }
 }
+
 
 export async function POST(request: NextRequest) {
   try {
