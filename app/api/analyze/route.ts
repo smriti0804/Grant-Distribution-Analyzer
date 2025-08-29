@@ -19,7 +19,17 @@ export async function POST(request: NextRequest) {
       body: JSON.stringify({ protocol_addr: protocolAddr }),
     });
 
-    const analysisData = await resp.json();
+    let analysisData: any;
+    try {
+      const rawText = await resp.text();
+      analysisData = rawText ? JSON.parse(rawText) : {};
+    } catch (parseErr) {
+      console.error("[analyze] Failed to parse JSON from Python response");
+      return NextResponse.json(
+        { error: "Invalid response from Python function" },
+        { status: 502 }
+      );
+    }
 
     if (!resp.ok) {
       return NextResponse.json(
