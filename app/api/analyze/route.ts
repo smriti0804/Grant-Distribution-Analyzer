@@ -1,8 +1,8 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { spawn } from "child_process"
+
 import path from "path"
 const fs = require("fs")
-
+const { spawn } = require("child_process")
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
