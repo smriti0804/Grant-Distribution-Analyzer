@@ -37,7 +37,6 @@ pymongo==4.14.1
 python-dateutil==2.9.0.post0
 pytz==2025.2
 pyunormalize==16.0.0
-pywin32==311
 regex==2025.7.34
 requests==2.32.5
 rlp==3.0.0
