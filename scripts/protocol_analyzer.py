@@ -1211,7 +1211,7 @@ def compute_beneficiaries_for_protocol(protocol_addr: str) -> dict:
         ))
     except Exception:
         total_returned = "0"
-
+    
     return {
         "beneficiaries": beneficiaries_list,
         "intermediaries": intermediaries_list,
@@ -1288,13 +1288,94 @@ def main(argv):
     combine_beneficiaries()
     print("\n[INFO] All selected flows completed.")
 
+# Add this to the end of your protocol_analyzer.py file
 
+
+def output_results_as_json():
+    try:
+        # Read the generated CSV files
+        import pandas as pd
+        
+        # Read beneficiaries
+        beneficiaries_df = pd.read_csv('combined_beneficiaries.csv')
+        beneficiaries_list = []
+        for _, row in beneficiaries_df.iterrows():
+            beneficiaries_list.append({
+                "beneficiary_address": row.get('address', row.get('beneficiary_address', '')),
+                "amount_received": float(row.get('amount', row.get('amount_received', 0)))
+            })
+        
+        # Read intermediaries
+        try:
+            intermediaries_df = pd.read_csv('combined_intermediaries.csv')
+            intermediaries_list = []
+            for _, row in intermediaries_df.iterrows():
+                intermediaries_list.append({
+                    "intermediary_address": row.get('address', row.get('intermediary_address', '')),
+                    "amount_received": float(row.get('amount', row.get('amount_received', 0)))
+                })
+        except:
+            intermediaries_list = []
+        
+        # Read returned amounts - FIX: Create returned_list properly
+        try:
+            returned_df = pd.read_csv('combined_returned.csv')
+            returned_list = []
+            for _, row in returned_df.iterrows():
+                returned_list.append({
+                    "address": row.get('address', row.get('return_address', '')),
+                    "amount_returned": float(row.get('amount', row.get('amount_returned', 0)))
+                })
+            total_returned = returned_df['amount_returned'].sum() if 'amount_returned' in returned_df.columns else 0
+        except Exception as e:
+            print(f"[DEBUG] Error reading returned amounts: {e}")
+            returned_list = []
+            total_returned = 0
+        
+        # Calculate totals
+        total_beneficiaries_amount = sum(b['amount_received'] for b in beneficiaries_list)
+        total_intermediaries_amount = sum(i['amount_received'] for i in intermediaries_list)
+        
+        # Debug: Print what we calculated
+        print(f"[DEBUG] Calculated total_beneficiaries_amount: {total_beneficiaries_amount}")
+        print(f"[DEBUG] Calculated total_intermediaries_amount: {total_intermediaries_amount}")
+        print(f"[DEBUG] Calculated total_returned: {total_returned}")
+        
+        result = {
+            "beneficiaries": beneficiaries_list,
+            "intermediaries": intermediaries_list,
+            "returned_amounts": returned_list,  # FIX: Now properly defined
+            "summary": {
+                "total_beneficiaries": len(beneficiaries_list),
+                "total_intermediaries": len(intermediaries_list),
+                "total_returned_addresses": len(returned_list),
+                "total_amount_distributed": total_beneficiaries_amount,
+                "total_intermediaries_amount": total_intermediaries_amount,
+                "total_amount_returned": total_returned  
+            }
+        }
+        
+        # Output the result in the expected format
+        import json
+        print("[RESULT]" + json.dumps(result))
+        
+        return result
+    except Exception as e:
+        print(f"[ERROR] Failed to output JSON: {str(e)}")
+        return None
+
+# FIX: Update your main execution block
 if __name__ == "__main__":
-    main(sys.argv[1:])
-# return {"status": "ok", "received": data}
-
-# if __name__ == "__main__":
-#     raw = sys.argv[1] if len(sys.argv) > 1 else "{}"
-#     data = json.loads(raw)
-#     result = analyze(data)
-#     print(json.dumps(result))
+    # Parse arguments
+    if len(sys.argv) >= 3 and sys.argv[1] == '--protocol':
+        protocol_address = sys.argv[2]
+        print(f"[DEBUG] Starting analysis for protocol: {protocol_address}")
+        
+        # Run your existing main function
+        main(['--protocol', protocol_address])  # This does all the analysis and creates CSVs
+        
+        # THEN output the JSON results
+        output_results_as_json()  # FIX: Actually call this function!
+    else:
+        print("Usage: python protocol_analyzer.py --protocol <address>")
+        sys.exit(1)
