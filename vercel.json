@@ -1,8 +1,0 @@
-{
-    "functions": {
-      "api/*.ts": {
-        "runtime": "@vercel/node@2.15.11"
-      }
-    }
-  }
-  
