@@ -28,11 +28,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         beneficiaries: [{ address: protocolAddr, amount: "1000.0", token: "ARB", percentage: "100" }],
         intermediaries: [],
-        holdings: [{ address: protocolAddr, balance: "500.0", token: "ARB" }],
         summary: {
           total_beneficiaries: 1,
           total_intermediaries: 0,
-          total_holdings: 1,
           total_amount: "1000.0",
           protocol_address: protocolAddr,
         },
@@ -41,64 +39,53 @@ export async function POST(request: NextRequest) {
     }
 
     const analysisData = await new Promise<any>((resolve, reject) => {
-      const pythonProcess = spawn("python3", [
+      const pythonProcess = spawn("python", [
         "-c",
         `
 import sys
 import os
 import json
-
 # Add current directory to path
 sys.path.insert(0, os.getcwd())
 sys.path.insert(0, os.path.join(os.getcwd(), 'scripts'))
-
 print(f"[DEBUG] Python version: {sys.version}")
 print(f"[DEBUG] Current working directory: {os.getcwd()}")
 print(f"[DEBUG] Python path: {sys.path}")
-
 try:
     # Try to import required modules
     import pandas as pd
     print("[DEBUG] pandas imported successfully")
     import pymongo
     print("[DEBUG] pymongo imported successfully")
-    
     # Try to import our script
     from protocol_analyzer import compute_beneficiaries_for_protocol
     print("[DEBUG] protocol_analyzer imported successfully")
-    
     # Run the analysis
     result = compute_beneficiaries_for_protocol('${protocolAddr}')
     print("[RESULT]" + json.dumps(result))
-    
 except ImportError as e:
     error_result = {
         "error": f"Import error: {str(e)}",
         "fallback_data": {
             "beneficiaries": [{"beneficiary_address": "${protocolAddr}", "amount_received": 1000.0}],
             "intermediaries": [],
-            "holdings": [{"address": "${protocolAddr}", "arb_holdings": 500.0}],
             "summary": {
                 "total_beneficiaries": 1,
                 "total_intermediaries": 0,
-                "total_holdings": 1,
                 "total_amount_distributed": 1000.0
             }
         }
     }
     print("[RESULT]" + json.dumps(error_result))
-    
 except Exception as e:
     error_result = {
         "error": f"Execution error: {str(e)}",
         "fallback_data": {
             "beneficiaries": [{"beneficiary_address": "${protocolAddr}", "amount_received": 1000.0}],
             "intermediaries": [],
-            "holdings": [{"address": "${protocolAddr}", "arb_holdings": 500.0}],
             "summary": {
                 "total_beneficiaries": 1,
                 "total_intermediaries": 0,
-                "total_holdings": 1,
                 "total_amount_distributed": 1000.0
             }
         }
@@ -151,11 +138,9 @@ except Exception as e:
             resolve({
               beneficiaries: [{ beneficiary_address: protocolAddr, amount_received: 1000.0 }],
               intermediaries: [],
-              holdings: [{ address: protocolAddr, arb_holdings: 500.0 }],
               summary: {
                 total_beneficiaries: 1,
                 total_intermediaries: 0,
-                total_holdings: 1,
                 total_amount_distributed: 1000.0,
               },
             })
@@ -166,18 +151,16 @@ except Exception as e:
           resolve({
             beneficiaries: [{ beneficiary_address: protocolAddr, amount_received: 1000.0 }],
             intermediaries: [],
-            holdings: [{ address: protocolAddr, arb_holdings: 500.0 }],
             summary: {
               total_beneficiaries: 1,
               total_intermediaries: 0,
-              total_holdings: 1,
               total_amount_distributed: 1000.0,
             },
           })
         }
       })
 
-      // Set timeout for long-running analysis
+      // Set timeout for long-running analysis (now 5 minutes)
       setTimeout(() => {
         pythonProcess.kill()
         console.log("[v0] Python process timeout")
@@ -185,15 +168,13 @@ except Exception as e:
         resolve({
           beneficiaries: [{ beneficiary_address: protocolAddr, amount_received: 1000.0 }],
           intermediaries: [],
-          holdings: [{ address: protocolAddr, arb_holdings: 500.0 }],
           summary: {
             total_beneficiaries: 1,
             total_intermediaries: 0,
-            total_holdings: 1,
             total_amount_distributed: 1000.0,
           },
         })
-      }, 30000) // 30 seconds timeout
+      }, 300000) // 5 minutes timeout
     })
 
     // Transform the data to match frontend expectations
@@ -209,16 +190,11 @@ except Exception as e:
         total_amount: i.amount_received,
         token: "ARB",
       })),
-      holdings: analysisData.holdings.map((h: any) => ({
-        address: h.address,
-        balance: h.arb_holdings,
-        token: "ARB",
-      })),
       summary: {
         total_beneficiaries: analysisData.summary.total_beneficiaries,
         total_intermediaries: analysisData.summary.total_intermediaries,
-        total_holdings: analysisData.summary.total_holdings,
         total_amount: analysisData.summary.total_amount_distributed,
+        total_amount_returned: analysisData.summary.total_amount_returned, // <-- add this
         protocol_address: protocolAddr,
       },
     }
@@ -234,11 +210,9 @@ except Exception as e:
         error: error instanceof Error ? error.message : "Internal server error",
         beneficiaries: [],
         intermediaries: [],
-        holdings: [],
         summary: {
           total_beneficiaries: 0,
           total_intermediaries: 0,
-          total_holdings: 0,
           total_amount: "0",
           protocol_address: "",
         },

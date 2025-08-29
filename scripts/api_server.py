@@ -43,15 +43,15 @@ class IntermediaryData(BaseModel):
     intermediary_address: str
     amount_received: str
 
-class HoldingData(BaseModel):
-    address: str
-    arb_holdings: str
+# class HoldingData(BaseModel):
+#     address: str
+#     arb_holdings: str
 
 class AnalyzeResponse(BaseModel):
     success: bool
     beneficiaries: List[BeneficiaryData]
     intermediaries: List[IntermediaryData]
-    holdings: List[HoldingData]
+    # holdings: List[HoldingData]
     summary: Dict[str, Any]
     message: str = ""
 
@@ -74,13 +74,13 @@ async def test_analyze():
         "intermediaries": [
             {"intermediary_address": "0x789", "amount_received": "500"}
         ],
-        "holdings": [
-            {"address": "0xabc", "arb_holdings": "300"}
-        ],
+        # "holdings": [
+        #     {"address": "0xabc", "arb_holdings": "300"}
+        # ],
         "summary": {
             "total_beneficiaries": 2,
             "total_intermediaries": 1,
-            "total_holdings": 1,
+            # "total_holdings": 1,
             "total_amount_distributed": "3000"
         },
         "message": "Test response"
@@ -89,7 +89,7 @@ async def test_analyze():
 @app.post("/analyze", response_model=AnalyzeResponse)
 async def analyze_protocol(request: AnalyzeRequest):
     """
-    Analyze a protocol address and return beneficiary, intermediary, and holdings data
+    Analyze a protocol address and return beneficiary and intermediary data
     """
     try:
         protocol_addr = request.protocol_addr.strip()
@@ -111,7 +111,7 @@ async def analyze_protocol(request: AnalyzeRequest):
                     "success": True,
                     "beneficiaries": result["beneficiaries"],
                     "intermediaries": result["intermediaries"],
-                    "holdings": result["holdings"],
+                    # "holdings": result["holdings"],
                     "summary": result["summary"],
                     "message": "Live analysis completed"
                 }
@@ -122,7 +122,7 @@ async def analyze_protocol(request: AnalyzeRequest):
         # Beneficiaries
         beneficiaries_list = []
         try:
-            df_ben = pd.read_csv("arb_beneficiaries.csv", dtype=str)
+            df_ben = pd.read_csv("combined_beneficiaries.csv", dtype=str)
             df_ben.columns = [c.strip() for c in df_ben.columns]
             for _, row in df_ben.iterrows():
                 addr = str(row.get("beneficiary_address", "")).strip()
@@ -158,23 +158,23 @@ async def analyze_protocol(request: AnalyzeRequest):
             print(f"Error reading intermediaries CSV: {e}")
 
         # Holdings
-        holdings_list = []
-        try:
-            df_hold = pd.read_csv("arb_holdings.csv", dtype=str)
-            df_hold.columns = [c.strip() for c in df_hold.columns]
-            for _, row in df_hold.iterrows():
-                addr = str(row.get("address", "")).strip()
-                amt = str(row.get("arb_holdings", "")).strip()
-                if not addr or addr.lower() in ["nan", "none"]:
-                    continue
-                if not amt or amt.lower() in ["nan", "none"]:
-                    amt = "0"
-                holdings_list.append({
-                    "address": addr,
-                    "arb_holdings": amt
-                })
-        except Exception as e:
-            print(f"Error reading holdings CSV: {e}")
+        # holdings_list = []
+        # try:
+        #     df_hold = pd.read_csv("arb_holdings.csv", dtype=str)
+        #     df_hold.columns = [c.strip() for c in df_hold.columns]
+        #     for _, row in df_hold.iterrows():
+        #         addr = str(row.get("address", "")).strip()
+        #         amt = str(row.get("arb_holdings", "")).strip()
+        #         if not addr or addr.lower() in ["nan", "none"]:
+        #             continue
+        #         if not amt or amt.lower() in ["nan", "none"]:
+        #             amt = "0"
+        #         holdings_list.append({
+        #             "address": addr,
+        #             "arb_holdings": amt
+        #         })
+        # except Exception as e:
+        #     print(f"Error reading holdings CSV: {e}")
 
         # Calculate total distributed
         def safe_sum_amounts(items, key):
@@ -191,18 +191,33 @@ async def analyze_protocol(request: AnalyzeRequest):
 
         total_distributed = safe_sum_amounts(beneficiaries_list, "amount_received")
         total_distributed += safe_sum_amounts(intermediaries_list, "amount_received")
-        total_distributed += safe_sum_amounts(holdings_list, "arb_holdings")
+        # total_distributed += safe_sum_amounts(holdings_list, "arb_holdings")
+
+        # Try to read returned amounts from CSV if it exists
+        total_amount_returned = "0"
+        try:
+            import pandas as pd
+            if os.path.exists("arb_returned.csv"):
+                df_ret = pd.read_csv("arb_returned.csv", dtype=str)
+                df_ret.columns = [c.strip() for c in df_ret.columns]
+                total_amount_returned = str(
+                    sum(float(x) for x in df_ret["amount_returned"] if str(x).lower() not in ["", "nan", "none"])
+                )
+        except Exception as e:
+            print(f"Error reading returned CSV: {e}")
 
         return {
             "success": True,
             "beneficiaries": beneficiaries_list,
             "intermediaries": intermediaries_list,
-            "holdings": holdings_list,
+            # "holdings": holdings_list,
             "summary": {
                 "total_beneficiaries": len(beneficiaries_list),
                 "total_intermediaries": len(intermediaries_list),
-                "total_holdings": len(holdings_list),
-                "total_amount_distributed": str(total_distributed)
+                # "total_holdings": len(holdings_list),
+                "total_amount_distributed": str(total_distributed),
+                "total_amount_returned": str(total_amount_returned) , # <-- ensure this is present
+                "protocol_address": protocol_addr
             },
             "message": "From CSV files"
         }
