@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
     }
 
     const analysisData = await new Promise<any>((resolve, reject) => {
-      const pythonProcess = spawn("python", [
+      const pythonProcess = spawn("python3", [
         "-c",
         `
 import sys
